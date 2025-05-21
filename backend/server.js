@@ -5,9 +5,9 @@ import {connectDB} from "./lib/db.js";
 
 import User from "./models/User.js";
 
-import {RedisStore} from 'connect-redis';
-import { createClient } from 'redis';
+
 import session from "express-session";
+import { redisClient, redisSession } from "./sessionHandler.js";
 import { isAuthenticated } from "./utils.js";
 
 const app = express();
@@ -16,39 +16,10 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
-
-
-
-const redisClient = createClient({
-    username: 'default',
-    password: 'BzEy7V5UXfMKc2a5qoJRFSXEJ421pVT7',
-    socket: {
-        host: 'redis-12895.crce197.us-east-2-1.ec2.redns.redis-cloud.com',
-        port: 12895
-    }
-});
-
 redisClient.on('error', err => console.log('Redis Client Error', err));
-
 await redisClient.connect();
+app.use( session(redisSession(redisClient)));
 
-//await redisClient.set('foo', 'bar');
-//const result = await redisClient.get('foo');
-//console.log(result)  // >>> bar
-
-
-
-app.use(session({
-    store:new RedisStore({client: redisClient}),
-    secret: process.env.SESSION_KEY,
-    resave:false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production' ? true: false ,
-        httpOnly:true,
-        maxAge: 1000*60*60 //1 hour 
-    }
-}));
 
 app.get("/api/session",isAuthenticated, (req,res)=>{
     res.json({success:true, loggedIn: true, user: req.session.user})
